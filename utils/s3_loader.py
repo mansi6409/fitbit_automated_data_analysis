@@ -373,46 +373,51 @@ def load_participant_data_from_s3(participant_id: str, date_range=None) -> Optio
     if 'date' not in combined.columns:
         return None
     
+    # Remove duplicate columns before any merge
+    combined = combined.loc[:, ~combined.columns.duplicated()]
+    
     # Merge daily activity data
     if daily_data is not None and 'date' in daily_data.columns:
-        # Select relevant columns
+        # Select relevant columns that don't already exist
         daily_cols = ['date', 'steps', 'caloriesOut', 'fairlyActiveMinutes', 
                       'lightlyActiveMinutes', 'veryActiveMinutes', 'sedentaryMinutes',
                       'restingHeartRate']
+        # Only include columns that exist in daily_data and not already in combined
         available_cols = [c for c in daily_cols if c in daily_data.columns]
-        if available_cols:
-            combined = combined.merge(
-                daily_data[available_cols], 
-                on='date', 
-                how='outer',
-                suffixes=('', '_daily')
-            )
+        new_cols = ['date'] + [c for c in available_cols if c not in combined.columns or c == 'date']
+        if len(new_cols) > 1:  # More than just 'date'
+            daily_subset = daily_data[new_cols].drop_duplicates(subset=['date'])
+            combined = combined.merge(daily_subset, on='date', how='outer')
+    
+    # Remove duplicates after merge
+    combined = combined.loc[:, ~combined.columns.duplicated()]
     
     # Merge steps if not already present
     if steps_data is not None and 'date' in steps_data.columns:
         if 'steps' not in combined.columns:
-            combined = combined.merge(
-                steps_data[['date', 'steps']], 
-                on='date', 
-                how='outer'
-            )
+            steps_subset = steps_data[['date', 'steps']].drop_duplicates(subset=['date'])
+            combined = combined.merge(steps_subset, on='date', how='outer')
     
     # Merge heart rate
     if heart_data is not None and 'date' in heart_data.columns:
-        combined = combined.merge(heart_data, on='date', how='outer')
+        if 'heart_rate' not in combined.columns:
+            heart_subset = heart_data[['date', 'heart_rate']].drop_duplicates(subset=['date'])
+            combined = combined.merge(heart_subset, on='date', how='outer')
     
     # Merge breathing rate
     if breath_data is not None and 'date' in breath_data.columns:
-        if 'breathingRate' in breath_data.columns:
-            combined = combined.merge(
-                breath_data[['date', 'breathingRate']], 
-                on='date', 
-                how='outer'
-            )
+        if 'breathingRate' in breath_data.columns and 'breathingRate' not in combined.columns:
+            breath_subset = breath_data[['date', 'breathingRate']].drop_duplicates(subset=['date'])
+            combined = combined.merge(breath_subset, on='date', how='outer')
     
     # Merge SpO2
     if spo2_data is not None and 'date' in spo2_data.columns:
-        combined = combined.merge(spo2_data, on='date', how='outer')
+        if 'spo2' not in combined.columns:
+            spo2_subset = spo2_data[['date', 'spo2']].drop_duplicates(subset=['date'])
+            combined = combined.merge(spo2_subset, on='date', how='outer')
+    
+    # Remove any remaining duplicate columns
+    combined = combined.loc[:, ~combined.columns.duplicated()]
     
     # Add participant info
     participants = get_s3_participants()
@@ -429,11 +434,9 @@ def load_participant_data_from_s3(participant_id: str, date_range=None) -> Optio
         'restingHeartRate': 'heart_rate',
         'veryActiveMinutes': 'activeMinutes',
     }
-    combined = combined.rename(columns=column_mapping)
-    
-    # If heart_rate not present but we have it from heart data
-    if 'heart_rate' not in combined.columns and heart_data is not None:
-        pass  # Already merged above
+    # Only rename columns that exist
+    rename_dict = {k: v for k, v in column_mapping.items() if k in combined.columns and v not in combined.columns}
+    combined = combined.rename(columns=rename_dict)
     
     # Filter by date range if provided
     if date_range and 'date' in combined.columns:
@@ -444,9 +447,12 @@ def load_participant_data_from_s3(participant_id: str, date_range=None) -> Optio
             (combined['date'] <= end_date)
         ]
     
-    # Sort by date
+    # Sort by date and remove duplicate rows
     if 'date' in combined.columns:
-        combined = combined.sort_values('date').reset_index(drop=True)
+        combined = combined.drop_duplicates(subset=['date']).sort_values('date').reset_index(drop=True)
+    
+    # Final cleanup - remove any duplicate columns
+    combined = combined.loc[:, ~combined.columns.duplicated()]
     
     return combined
 
