@@ -17,6 +17,16 @@ from config.settings import AVAILABLE_METRICS, METRIC_LABELS, CHART_TYPES
 
 st.set_page_config(page_title="Guided Analysis", page_icon="🎯", layout="wide")
 
+# ============ AUTHENTICATION ============
+from utils.auth import check_authentication, show_user_info, logout_button
+
+if not check_authentication():
+    st.stop()
+
+show_user_info()
+logout_button()
+# ========================================
+
 st.title("🎯 Guided Analysis Mode")
 st.markdown("AI suggests the path, you make the decisions")
 

@@ -19,6 +19,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ============ AUTHENTICATION ============
+from utils.auth import check_authentication, show_user_info, logout_button
+
+if not check_authentication():
+    st.stop()
+
+# Show user info and logout in sidebar
+show_user_info()
+logout_button()
+# ========================================
+
 # Custom CSS
 st.markdown("""
 <style>

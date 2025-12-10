@@ -19,6 +19,16 @@ from config.settings import METRIC_LABELS
 
 st.set_page_config(page_title="Quick AI Analysis", page_icon="🤖", layout="wide")
 
+# ============ AUTHENTICATION ============
+from utils.auth import check_authentication, show_user_info, logout_button
+
+if not check_authentication():
+    st.stop()
+
+show_user_info()
+logout_button()
+# ========================================
+
 st.title("🤖 Quick AI-Powered Analysis")
 st.markdown("Let AI do the heavy lifting. Just select participants and click analyze!")
 

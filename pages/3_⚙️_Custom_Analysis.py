@@ -17,6 +17,16 @@ from config.settings import AVAILABLE_METRICS, METRIC_LABELS, CHART_TYPES, COLOR
 
 st.set_page_config(page_title="Custom Analysis", page_icon="⚙️", layout="wide")
 
+# ============ AUTHENTICATION ============
+from utils.auth import check_authentication, show_user_info, logout_button
+
+if not check_authentication():
+    st.stop()
+
+show_user_info()
+logout_button()
+# ========================================
+
 st.title("⚙️ Custom Visualization Builder")
 st.markdown("Full control - build your charts exactly how you want them")
 
